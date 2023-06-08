@@ -24,12 +24,6 @@ class Database:
             if result != None:
                 return result[0]
             return result
-    def get_user_id(self, user_id:int):
-        with self.connection:
-            result = self.cursor.execute("SELECT user_id FROM users WHERE referral_id=?", (user_id, )).fetchone()
-            if result != None:
-                return result[0]
-            return result
 
     def add_user(self, user_id:int, referral_id=None, name_user:str='') -> None:
         reg_date = int(time.time())
