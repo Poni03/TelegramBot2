@@ -1,3 +1,6 @@
 aiogram==2.25.1
 openai==0.27.4
 fake-useragent
+tls-client
+pydantic
+retrying
