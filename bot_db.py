@@ -25,6 +25,11 @@ class Database:
                 return result[0]
             return result
 
+    def get_user_id(self, user_id:int):
+        with self.connection:
+            result = self.cursor.execute("SELECT * FROM users WHERE user_id=? AND referral_id IS NOT NULL", (user_id, ))
+            return result.fetchone() is not None
+
     def add_user(self, user_id:int, referral_id=None, name_user:str='') -> None:
         reg_date = int(time.time())
         with self.connection:
@@ -44,13 +49,26 @@ class Database:
                 return result[0]
             return result
 
+    def referral_discount(self, user_id:int) -> bool:
+        with self.connection:
+            result = self.cursor.execute("SELECT status FROM users WHERE user_id=?", (user_id,))
+            return result.fetchone()
+
     def add_date_sub(self, user_id:int, date_sub:int) -> None:
         old_date = self.get_date(user_id)
         if old_date == None:
             old_date = time.time()
         date_sub_int = int(old_date) + date_sub *24 *60 *60
         with self.connection:
-            self.cursor.execute(f"UPDATE users SET date_sub={date_sub_int} WHERE user_id={user_id}")	
+            self.cursor.execute(f"UPDATE users SET date_sub={date_sub_int} WHERE user_id={user_id}")
+
+    def add_date_sub_status(self, user_id:int, date_sub:int, status:int) -> None:
+        old_date = self.get_date(user_id)
+        if old_date == None:
+            old_date = time.time()
+        date_sub_int = int(old_date) + date_sub *24 *60 *60
+        with self.connection:
+            self.cursor.execute(f"UPDATE users SET date_sub={date_sub_int}, status={1} WHERE user_id={user_id}")
 	
     def get_date_status(self, user_id:int) -> bool:
         with self.connection:

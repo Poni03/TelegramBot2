@@ -10,10 +10,12 @@ mainMenu.add(btProfile, btBuy)
 mainDMD = ReplyKeyboardMarkup(resize_keyboard = True)
 mainDMD.add(btDMD, btProfile, btBuy)
 '''
+#share_markup = telegram.ReplyKeyboardMarkup([[telegram.KeyboardButton("Поделиться", request_contact=True)]], resize_keyboard=True)
+
 #InlineMenu
 sub_inline_murk = InlineKeyboardMarkup(row_width=2)
 
 
-btnSubMoth = InlineKeyboardButton(text="Месяц - 159 рублей", callback_data='submonth')
+btnSubMoth = InlineKeyboardButton(text="Месяц - 199 рублей", callback_data='submonth')
 btnSubMoth3 = InlineKeyboardButton(text="3 Месяца - 477 рублей", callback_data='submonth3')
 sub_inline_murk.add(btnSubMoth)
