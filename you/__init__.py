@@ -111,7 +111,7 @@ class Completion:
 
     @staticmethod
     def __get_failure_response() -> YouResponse:
-        return YouResponse(text='Unable to fetch the response, Please try again.')
+        return YouResponse(text='Упс! Ошибка. Просьба начать новую тему')
 
     @staticmethod
     @retry(

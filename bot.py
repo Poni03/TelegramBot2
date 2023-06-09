@@ -38,8 +38,8 @@ async def setup_bot_commands(dp):
     await dp.bot.set_my_commands(bot_commands)
 
 
-PRICE = types.LabeledPrice(label='Подписка на 1 месяц', amount=159*100)
-REFFERAL_PRICE = types.LabeledPrice(label='Подписка на 1 месяц', amount=143*100)
+PRICE = types.LabeledPrice(label='Подписка на 1 месяц', amount=199*100)
+REFFERAL_PRICE = types.LabeledPrice(label='Подписка на 1 месяц', amount=179*100)
 user_messages = {}
 messages = {}
 
@@ -133,22 +133,28 @@ async def profile_handler(message: types.Message):
 @dp.message_handler(lambda message: message.text and 'оформить подписку' in message.text.lower())
 async def subscribe_handler(message: types.Message):
     try:
-        if config.PAYMENTS_TOKEN.split(':')[1] == 'LIVE':
+        if config.PAYMENTS_TOKEN.split(':')[1] == 'TEST':
             await message.answer("С нашей интегрированной платежной системой, встроенной непосредственно в Telegram, вы можете быть уверены, что все транзакции проводятся в соответствии с законодательством. Оплатить подписку вы можете с помощью банковской карты. После оплаты вы получаете электронный чек. И ссылка на оплату")
-            if db.get_user_id(message.from_user.id):
-                await bot.send_invoice(message.chat.id,
-                    title="Подписка на бота",
-                    description="Активация подписки на бота на 30 дней, скидка за реферальную систему 10%",
-                    provider_token=config.PAYMENTS_TOKEN,
-                    currency="rub",
-                    photo_url="https://www.aroged.com/wp-content/uploads/2022/06/Telegram-has-a-premium-subscription.jpg",
-                    photo_width=416,
-                    photo_height=234,
-                    photo_size=416,
-                    is_flexible=False,
-                    prices=[REFFERAL_PRICE],
-                    start_parameter="one-month-subscription",
-                    payload="moth_sub")
+            if db.get_referral_id(message.from_user.id):
+                used_discount = {}
+                user_id = message.from_user.id
+                if user_id in used_discount:
+                    pass
+                else:
+                    used_discount[user_id] = True
+                    await bot.send_invoice(message.chat.id,
+                        title="Подписка на бота",
+                        description="Активация подписки на бота на 30 дней, скидка за реферальную систему 10%",
+                        provider_token=config.PAYMENTS_TOKEN,
+                        currency="rub",
+                        photo_url="https://www.aroged.com/wp-content/uploads/2022/06/Telegram-has-a-premium-subscription.jpg",
+                        photo_width=416,
+                        photo_height=234,
+                        photo_size=416,
+                        is_flexible=False,
+                        prices=[REFFERAL_PRICE],
+                        start_parameter="one-month-subscription",
+                        payload="moth_sub")
             else:
                 await bot.send_invoice(message.chat.id,
                     title="Подписка на бота",
