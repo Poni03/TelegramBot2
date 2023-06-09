@@ -133,7 +133,7 @@ async def profile_handler(message: types.Message):
 @dp.message_handler(lambda message: message.text and 'оформить подписку' in message.text.lower())
 async def subscribe_handler(message: types.Message):
     try:
-        if config.PAYMENTS_TOKEN.split(':')[1] == 'TEST':
+        if config.PAYMENTS_TOKEN.split(':')[1] == 'LIVE':
             await message.answer("С нашей интегрированной платежной системой, встроенной непосредственно в Telegram, вы можете быть уверены, что все транзакции проводятся в соответствии с законодательством. Оплатить подписку вы можете с помощью банковской карты. После оплаты вы получаете электронный чек. И ссылка на оплату")
             if db.get_user_id(message.from_user.id):
                 await bot.send_invoice(message.chat.id,
