@@ -49,10 +49,18 @@ class Database:
                 return result[0]
             return result
 
-    def referral_discount(self, user_id:int) -> bool:
+    def get_referral_discount(self, user_id:int) -> bool:
         with self.connection:
-            result = self.cursor.execute("SELECT status FROM users WHERE user_id=?", (user_id,))
-            return result.fetchone()
+            result = self.cursor.execute("SELECT status FROM users WHERE user_id=? AND referral_id IS NOT NULL", (user_id,)).fetchone()
+            if result != None:
+                # if true to false and false to true
+                return not result[0]
+            return False
+
+    async def set_first_pay_status(self, user_id:int) -> None:
+        with self.connection:
+            self.cursor.execute(f"UPDATE users SET status=1 WHERE user_id={user_id}")
+
 
     def add_date_sub(self, user_id:int, date_sub:int) -> None:
         old_date = self.get_date(user_id)

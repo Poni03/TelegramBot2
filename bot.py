@@ -5,7 +5,6 @@ import config
 import asyncio
 import os
 import you
-import telegram
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types.message import ContentType
@@ -39,8 +38,10 @@ async def setup_bot_commands(dp):
     await dp.bot.set_my_commands(bot_commands)
 
 
-PRICE = types.LabeledPrice(label='Подписка на 1 месяц', amount=199*100)
-REFFERAL_PRICE = types.LabeledPrice(label='Подписка на 1 месяц', amount=179*100)
+PRICE_1 = types.LabeledPrice(label='Подписка на 1 месяц', amount=199*100)
+PRICE_3 = types.LabeledPrice(label='Подписка на 3 месяца', amount=477*100)
+REFFERAL_PRICE_1 = types.LabeledPrice(label='Подписка на 1 месяц (10% скидка)', amount=179*100)
+REFFERAL_PRICE_3 = types.LabeledPrice(label='Подписка на 3 месяца (10% скидка)', amount=429*100)
 user_messages = {}
 messages = {}
 
@@ -127,114 +128,56 @@ async def profile_handler(message: types.Message):
     encrypted_link = Referr.encrypt_referral_link(message.from_user.id)
     info = await bot.get_me()
     name = info.username
-    share_text = f"https://telegram.me/{name}?start={encrypted_link}"
+    share_text = f"https://t.me/{name}?start={encrypted_link}"
     await message.answer(f'Дата окончания: {date_string}\nID: {message.from_user.id}\nВаша реферальная сcылка:\n{share_text}\nКол-во рефералов:{db.count_referral(message.from_user.id)}')
 
-@dp.callback_query_handler(text='submonth')
-async def handle_callback_query(call):
-    user_id = call.from_user.id
-    if call.data == 'submonth':
-        await bot.send_message(user_id, "С нашей интегрированной платежной системой, встроенной непосредственно в Telegram, вы можете быть уверены, что все транзакции проводятся в соответствии с законодательством. Оплатить подписку вы можете с помощью банковской карты. После оплаты вы получаете электронный чек. И ссылка на оплату")
-        if db.get_referral_id(user_id):
-            print(db.get_referral_id(user_id))
-            check = db.referral_discount(user_id)
-            if check and check[0] == 0:
-                await bot.send_invoice(call.message.chat.id,
-                    title="Подписка на бота",
-                    description="Активация подписки на бота на 30 дней, скидка за реферальную систему 10%",
-                    provider_token=config.PAYMENTS_TOKEN,
-                    currency="rub",
-                    photo_url="https://www.aroged.com/wp-content/uploads/2022/06/Telegram-has-a-premium-subscription.jpg",
-                    photo_width=416,
-                    photo_height=234,
-                    photo_size=416,
-                    is_flexible=False,
-                    prices=[REFFERAL_PRICE],
-                    start_parameter="one-month-subscription",
-                    payload="ref_moth_sub")
-            else:
-                await bot.send_invoice(call.message.chat.id,
-                    title="Подписка на бота",
-                    description="Активация подписки на бота на 30 дней",
-                    provider_token=config.PAYMENTS_TOKEN,
-                    currency="rub",
-                    photo_url="https://www.aroged.com/wp-content/uploads/2022/06/Telegram-has-a-premium-subscription.jpg",
-                    photo_width=416,
-                    photo_height=234,
-                    photo_size=416,
-                    is_flexible=False,
-                    prices=[PRICE],
-                    start_parameter="one-month-subscription",
-                    payload="moth_sub")
-        else:
-            await bot.send_invoice(call.message.chat.id,
-                title="Подписка на бота",
-                description="Активация подписки на бота на 30 дней",
-                provider_token=config.PAYMENTS_TOKEN,
-                currency="rub",
-                photo_url="https://www.aroged.com/wp-content/uploads/2022/06/Telegram-has-a-premium-subscription.jpg",
-                photo_width=416,
-                photo_height=234,
-                photo_size=416,
-                is_flexible=False,
-                prices=[PRICE],
-                start_parameter="one-month-subscription",
-                payload="moth_sub")
+
+@dp.callback_query_handler(lambda c: c.data.startswith('submonth_'))
+async def handle_callback_query(callback: types.CallbackQuery):
+    try:
+        user_id = callback.from_user.id
+        action = callback.data.split("_")[1]
+        # set parameters
+        add_days = 30
+        price = PRICE_1
+        start_parameter = "one-month-subscription"
+        payload = "moth_sub"
+        if action == "3":
+            add_days = 90
+            price = PRICE_3
+            payload = "three_moth_sub"
+            start_parameter = "three-month-subscription"
+
+        description = f"Активация подписки на бота на {add_days} дней"
+        if db.get_referral_discount(user_id):
+            description = description + "скидка за реферальную систему 10%"
+            price = REFFERAL_PRICE_1
+            payload = "ref_moth_sub"
+            if action == "3":
+                price = REFFERAL_PRICE_3
+                payload = "ref_three_moth_sub"
+
+        await bot.send_invoice(callback.message.chat.id,
+            title="Подписка на бота",
+            description=description,
+            provider_token=config.PAYMENTS_TOKEN,
+            currency="rub",
+            photo_url="https://www.aroged.com/wp-content/uploads/2022/06/Telegram-has-a-premium-subscription.jpg",
+            photo_width=416,
+            photo_height=234,
+            photo_size=416,
+            is_flexible=False,
+            prices=[price],
+            start_parameter=start_parameter,
+            payload=payload)
+    except Exception as e:
+        logging.error(f'Error in subscribe: {e}')
+
 
 @dp.message_handler(commands="subscribe")
 @dp.message_handler(lambda message: message.text and 'оформить подписку' in message.text.lower())
 async def subscribe_handler(message: types.Message):
-    try:
-        if config.PAYMENTS_TOKEN.split(':')[1] == 'TEST':
-            await message.answer("С нашей интегрированной платежной системой, встроенной непосредственно в Telegram, вы можете быть уверены, что все транзакции проводятся в соответствии с законодательством. Оплатить подписку вы можете с помощью банковской карты. После оплаты вы получаете электронный чек. И ссылка на оплату")
-            if db.get_referral_id(message.from_user.id):
-                print(db.get_referral_id(message.from_user.id))
-                check = db.referral_discount(message.from_user.id)
-                if check and check[0] == 0:
-                    await bot.send_invoice(message.chat.id,
-                        title="Подписка на бота",
-                        description="Активация подписки на бота на 30 дней, скидка за реферальную систему 10%",
-                        provider_token=config.PAYMENTS_TOKEN,
-                        currency="rub",
-                        photo_url="https://www.aroged.com/wp-content/uploads/2022/06/Telegram-has-a-premium-subscription.jpg",
-                        photo_width=416,
-                        photo_height=234,
-                        photo_size=416,
-                        is_flexible=False,
-                        prices=[REFFERAL_PRICE],
-                        start_parameter="one-month-subscription",
-                        payload="ref_moth_sub")
-                else:
-                    await bot.send_invoice(message.chat.id,
-                        title="Подписка на бота",
-                        description="Активация подписки на бота на 30 дней",
-                        provider_token=config.PAYMENTS_TOKEN,
-                        currency="rub",
-                        photo_url="https://www.aroged.com/wp-content/uploads/2022/06/Telegram-has-a-premium-subscription.jpg",
-                        photo_width=416,
-                        photo_height=234,
-                        photo_size=416,
-                        is_flexible=False,
-                        prices=[PRICE],
-                        start_parameter="one-month-subscription",
-                        payload="moth_sub")
-            else:
-                await bot.send_invoice(message.chat.id,
-                    title="Подписка на бота",
-                    description="Активация подписки на бота на 30 дней",
-                    provider_token=config.PAYMENTS_TOKEN,
-                    currency="rub",
-                    photo_url="https://www.aroged.com/wp-content/uploads/2022/06/Telegram-has-a-premium-subscription.jpg",
-                    photo_width=416,
-                    photo_height=234,
-                    photo_size=416,
-                    is_flexible=False,
-                    prices=[PRICE],
-                    start_parameter="one-month-subscription",
-                    payload="moth_sub")
-    except Exception as e:
-        logging.error(f'Error in subscribe: {e}')
-
+    await message.answer(f"Выберите и оформите подписку!", reply_markup=nav.sub_inline_murk)
 
 @dp.message_handler(content_types="text")
 async def send(message: types.Message):
@@ -287,26 +230,30 @@ async def pre_checkout_query(pre_checkout_q: types.PreCheckoutQuery):
 @dp.message_handler(content_types=ContentType.SUCCESSFUL_PAYMENT)
 async def successful_payment(message: types.Message):
     try:
+        answer = f"Платеж на сумму {message.successful_payment.total_amount // 100} {message.successful_payment.currency} прошел успешно!!!"
+        add_days = config.DAYS_ADD_TO_PAYMENT
         if message.successful_payment.invoice_payload == "moth_sub":
-            db.add_date_sub(message.from_user.id, config.DAYS_ADD_TO_PAYMENT)
-            await message.answer(f"Платеж на сумму {message.successful_payment.total_amount // 100} {message.successful_payment.currency} прошел успешно!!!\n Подзравляю вам выдана подписка на 30 дней!")
-
-            referral_id = db.get_referral_id(message.from_user.id)
-
-            if referral_id is not None:
-                db.add_date_sub(referral_id, config.DAYS_ADD_FOR_REFFERAL)
-                await bot.send_message(referral_id, f'Ваша подписка продлена на {config.DAYS_ADD_FOR_REFFERAL} дней, по Вашей реферальной ссылке зачислены средства')
-
+            answer = answer + "\n Подзравляю вам выдана подписка на 30 дней!"
+            add_days = 30
+        elif message.successful_payment.invoice_payload == "three_moth_sub":
+            answer = answer + "\n Подзравляю вам выдана подписка на 90 дней!"
+            add_days = 90
         elif message.successful_payment.invoice_payload == "ref_moth_sub":
-            db.add_date_sub_status(message.from_user.id, config.DAYS_ADD_TO_PAYMENT, config.STATUS)
-            await message.answer(f"Платеж на сумму {message.successful_payment.total_amount // 100} {message.successful_payment.currency} прошел успешно!!!\n Подзравляю вам выдана подписка на 30 дней!")
+            answer = answer + "\n Подзравляю вам выдана подписка на 30 дней со скидкой!"
+            add_days = 30
+        elif message.successful_payment.invoice_payload == "ref_three_moth_sub":
+            answer = answer + "\n Подзравляю вам выдана подписка на 90 дней со скидкой!"
+            add_days = 90
 
-            referral_id = db.get_referral_id(message.from_user.id)
-            if referral_id is not None:
-                db.add_date_sub(referral_id, config.DAYS_ADD_FOR_REFFERAL)
-                await bot.send_message(referral_id, f'Ваша подписка продлена на {config.DAYS_ADD_FOR_REFFERAL} дней, по Вашей реферальной ссылке зачислены средства')
+        db.add_date_sub(message.from_user.id, add_days)
+        await message.answer(answer)
 
+        referral_id = db.get_referral_id(message.from_user.id)
+        if referral_id is not None:
+            db.add_date_sub(referral_id, config.DAYS_ADD_FOR_REFFERAL)
+            await bot.send_message(referral_id, f'Ваша подписка продлена на {config.DAYS_ADD_FOR_REFFERAL} дней, по Вашей реферальной ссылке зачислены средства')
 
+        db.set_first_pay_status(message.from_user.id)
 
     except Exception as e:
         logging.error(f'Error in payment: {e}')
