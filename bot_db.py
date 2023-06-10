@@ -15,7 +15,7 @@ class Database:
 
     async def referral_exists(self, user_id:int) -> bool:
         with self.connection:
-            result = self.cursor.execute("SELECT id FROM users WHERE user_id=? AND referral_id IS NOT NULL", (user_id, ))
+            result = self.cursor.execute("SELECT id FROM users WHERE user_id=? AND referral_id IS NOT NULL AND referral_id != ''", (user_id, ))
             return result.fetchone() is not None
 
     def get_referral_id(self, user_id:int):
@@ -51,10 +51,10 @@ class Database:
 
     def get_referral_discount(self, user_id:int) -> bool:
         with self.connection:
-            result = self.cursor.execute("SELECT status FROM users WHERE user_id=? AND referral_id IS NOT NULL", (user_id,)).fetchone()
+            result = self.cursor.execute("SELECT status FROM users WHERE user_id=? AND referral_id IS NOT NULL AND referral_id != '' AND status != 1", (user_id,)).fetchone()
             if result != None:
                 # if true to false and false to true
-                return not result[0]
+                return True
             return False
 
     async def set_first_pay_status(self, user_id:int) -> None:
