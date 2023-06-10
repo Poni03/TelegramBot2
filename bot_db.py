@@ -20,7 +20,7 @@ class Database:
 
     def get_referral_id(self, user_id:int):
         with self.connection:
-            result = self.cursor.execute("SELECT referral_id FROM users WHERE user_id=?", (user_id, )).fetchone()
+            result = self.cursor.execute("SELECT referral_id FROM users WHERE referral_id IS NOT NULL AND referral_id != '' AND user_id=?", (user_id, )).fetchone()
             if result != None:
                 return result[0]
             return result
@@ -44,7 +44,7 @@ class Database:
 
     def get_date(self, user_id:int):
         with self.connection:
-            result = self.cursor.execute(f"SELECT date_sub FROM users WHERE user_id={user_id}").fetchone()
+            result = self.cursor.execute("SELECT date_sub FROM users WHERE user_id=?", (user_id, )).fetchone()
             if result != None:
                 return result[0]
             return result
@@ -59,7 +59,7 @@ class Database:
 
     async def set_first_pay_status(self, user_id:int) -> None:
         with self.connection:
-            self.cursor.execute(f"UPDATE users SET status=1 WHERE user_id={user_id}")
+            self.cursor.execute("UPDATE users SET status=1 WHERE user_id=?", (user_id, ))
 
 
     def add_date_sub(self, user_id:int, date_sub:int) -> None:
@@ -68,7 +68,7 @@ class Database:
             old_date = time.time()
         date_sub_int = int(old_date) + date_sub *24 *60 *60
         with self.connection:
-            self.cursor.execute(f"UPDATE users SET date_sub={date_sub_int} WHERE user_id={user_id}")
+            self.cursor.execute("UPDATE users SET date_sub=? WHERE user_id=?", (date_sub_int, user_id, ))
 
     def add_date_sub_status(self, user_id:int, date_sub:int, status:int) -> None:
         old_date = self.get_date(user_id)
@@ -76,11 +76,11 @@ class Database:
             old_date = time.time()
         date_sub_int = int(old_date) + date_sub *24 *60 *60
         with self.connection:
-            self.cursor.execute(f"UPDATE users SET date_sub={date_sub_int}, status={1} WHERE user_id={user_id}")
+            self.cursor.execute("UPDATE users SET date_sub=?, status=1 WHERE user_id=?", (date_sub_int, user_id, ))
 	
     def get_date_status(self, user_id:int) -> bool:
         with self.connection:
-            result = self.cursor.execute(f"SELECT date_sub FROM users WHERE user_id={user_id}").fetchone()
+            result = self.cursor.execute("SELECT date_sub FROM users WHERE user_id=?", (user_id, )).fetchone()
             if result == None:
                 time_from = time.time()
             else:
@@ -90,11 +90,28 @@ class Database:
     
     async def increment_counter_msg(self, user_id:int) -> None:
         with self.connection:
-            self.cursor.execute(f"UPDATE users SET count_message=count_message+1 WHERE user_id={user_id}")
+            self.cursor.execute("UPDATE users SET count_message=count_message+1 WHERE user_id=?", (user_id, ))
     
     def get_counter_msg(self, user_id:int) -> int:
         with self.connection:
-            result = self.cursor.execute(f"SELECT count_message FROM users WHERE user_id={user_id}").fetchone()
+            result = self.cursor.execute("SELECT count_message FROM users WHERE user_id=?", (user_id, )).fetchone()
             if result != None:
                 return result[0]
             return result
+
+    def add_payment(self, user_id:int, payment_id:str, status:str, summ:str, payload: str) -> None:
+        reg_date = int(time.time())
+        with self.connection:
+            self.cursor.execute("INSERT INTO payments (user_id, payment_id, status, summ, date_create, payload) VALUES (?, ?, ?, ?, ?, ?)", (user_id, payment_id, status, summ, reg_date, payload,))
+
+    def get_payments_for_status(self, status:str):
+        with self.connection:
+            result = self.cursor.execute("SELECT payment_id, user_id, payload FROM payments WHERE status=?", (status, )).fetchall()
+            if result != None:
+                return result
+            return None;
+
+    def update_payment_status(self, payment_id:str, status:str) -> None:
+        reg_date = int(time.time())
+        with self.connection:
+            self.cursor.execute("UPDATE payments SET status=?, date_oper=? WHERE payment_id=?", (status, reg_date, payment_id, ))

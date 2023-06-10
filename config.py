@@ -1,6 +1,9 @@
 TOKEN = ''
 PAYMENTS_TOKEN = ''
 PONI_BOT = 'GPT-Dialog' 
+SHOP_ID = ''
+SHOP_API_TOKEN = ''
+SHOP_EMAIL =''
 
 p = ''
 OPENAIKEY = ''
