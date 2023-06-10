@@ -151,7 +151,7 @@ async def handle_callback_query(callback: types.CallbackQuery):
         description = f"Активация подписки на бота на {add_days} дней"
         
         if db.get_referral_discount(user_id):
-            description = description + "скидка за реферальную систему 10%"
+            description = description + " скидка за реферальную систему 10%"
             price = REFFERAL_PRICE_1
             payload = "ref_moth_sub"
             if action == "3":

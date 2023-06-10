@@ -27,7 +27,7 @@ class Database:
 
     def get_user_id(self, user_id:int):
         with self.connection:
-            result = self.cursor.execute("SELECT * FROM users WHERE user_id=? AND referral_id IS NOT NULL", (user_id, ))
+            result = self.cursor.execute("SELECT * FROM users WHERE user_id=? AND referral_id IS NOT NULL AND referral_id != ''", (user_id, ))
             return result.fetchone() is not None
 
     def add_user(self, user_id:int, referral_id=None, name_user:str='') -> None:
