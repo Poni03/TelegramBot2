@@ -260,7 +260,8 @@ async def handle_callback_query(callback: types.CallbackQuery):
         if payment_data['status'] == 'succeeded':
             await set_payment_success(user_id, payment_data, payload)
         elif payment_data['status'] == 'canceled':
-            await bot.send_message(user_id, 'Оплата подписки отменена, попробуйте оплатить заново')
+            date_create_str = datetime.datetime.strptime(payment_data['created_at'][:19], "%Y-%m-%dT%H:%M:%S").strftime('%d-%m-%Y %H:%M')
+            await bot.send_message(user_id, f"Платеж от {date_create_str} отменён, попробуйте оплатить попозже")
 
     except Exception as e:
         await bot.send_message(user_id, "Не формировался чек. попробуйте позже.")
@@ -280,7 +281,8 @@ async def check_payment(self):
                 if payment['status'] == 'succeeded':
                     await set_payment_success(user_id, payment, payload)
                 elif payment['status'] == 'canceled':
-                    await bot.send_message(user_id, 'Оплата подписки отменена, попробуйте оплатить заново')
+                    date_create_str = datetime.datetime.strptime(payment['created_at'][:19], "%Y-%m-%dT%H:%M:%S").strftime('%d-%m-%Y %H:%M')
+                    await bot.send_message(user_id, f"Платеж от {date_create_str} отменён, попробуйте оплатить попозже")
 
             await asyncio.sleep(7) #5 секунд ожидания каждого запроса, чтобы не заткнуть АПИ
 
@@ -295,7 +297,8 @@ async def check_payment(self):
                 if payment['status'] == 'succeeded':
                     await set_payment_success(user_id, payment, payload)
                 elif payment['status'] == 'canceled':
-                    await bot.send_message(user_id, 'Оплата подписки отменена, попробуйте оплатить заново')
+                    date_create_str = datetime.datetime.strptime(payment['created_at'][:19], "%Y-%m-%dT%H:%M:%S").strftime('%d-%m-%Y %H:%M')
+                    await bot.send_message(user_id, f"Платеж от {date_create_str} отменён, попробуйте оплатить попозже")
 
             await asyncio.sleep(7) #5 секунд ожидания каждого запроса, чтобы не заткнуть АПИ
 
