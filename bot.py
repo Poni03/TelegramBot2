@@ -30,8 +30,8 @@ yooConfig.secret_key = config.SHOP_API_TOKEN
 
 bot = Bot(token=config.TOKEN)
 dp = Dispatcher(bot)
-# database for local use
-db = Database('db/db.db')
+
+db = Database(config.DB_FILE)
 # database for docker container docker-compose up -d
 # db = Database('/root/db.db')
 
