@@ -66,6 +66,8 @@ class Database:
         old_date = self.get_date(user_id)
         if old_date == None:
             old_date = time.time()
+        if old_date < int(time.time()):
+            old_date = time.time()
         date_sub_int = int(old_date) + date_sub *24 *60 *60
         with self.connection:
             self.cursor.execute("UPDATE users SET date_sub=? WHERE user_id=?", (date_sub_int, user_id, ))
@@ -73,6 +75,8 @@ class Database:
     def add_date_sub_status(self, user_id:int, date_sub:int, status:int) -> None:
         old_date = self.get_date(user_id)
         if old_date == None:
+            old_date = time.time()
+        if old_date < int(time.time()):
             old_date = time.time()
         date_sub_int = int(old_date) + date_sub *24 *60 *60
         with self.connection:
