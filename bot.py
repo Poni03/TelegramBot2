@@ -251,6 +251,8 @@ async def handle_callback_query(callback: types.CallbackQuery):
         payment_id = payment_data['id']
         payment_url = (payment_data['confirmation'])['confirmation_url']
 
+        description += "\nСсылка на оплату действует в течении одного часа, после чего он будет отменен."
+
         payment_button = InlineKeyboardButton(f"Заплатить {price_str} р.", url=payment_url)
         await bot.send_message(user_id, description ,reply_markup=InlineKeyboardMarkup(row_width=1).add(payment_button))
 
@@ -261,10 +263,10 @@ async def handle_callback_query(callback: types.CallbackQuery):
             await set_payment_success(user_id, payment_data, payload)
         elif payment_data['status'] == 'canceled':
             date_create_str = datetime.datetime.strptime(payment_data['created_at'][:19], "%Y-%m-%dT%H:%M:%S").strftime('%d-%m-%Y %H:%M')
-            await bot.send_message(user_id, f"Платеж от {date_create_str} отменён, попробуйте оплатить попозже")
+            await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки")
 
     except Exception as e:
-        await bot.send_message(user_id, "Не формировался чек. попробуйте позже.")
+        await bot.send_message(user_id, "Не сформировался чек. попробуйте позже.")
         logging.error(f'Error in subscribe: {e}')
 
 async def check_payment(self):
@@ -282,7 +284,7 @@ async def check_payment(self):
                     await set_payment_success(user_id, payment, payload)
                 elif payment['status'] == 'canceled':
                     date_create_str = datetime.datetime.strptime(payment['created_at'][:19], "%Y-%m-%dT%H:%M:%S").strftime('%d-%m-%Y %H:%M')
-                    await bot.send_message(user_id, f"Платеж от {date_create_str} отменён, попробуйте оплатить попозже")
+                    await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки")
 
             await asyncio.sleep(7) #5 секунд ожидания каждого запроса, чтобы не заткнуть АПИ
 
@@ -298,7 +300,7 @@ async def check_payment(self):
                     await set_payment_success(user_id, payment, payload)
                 elif payment['status'] == 'canceled':
                     date_create_str = datetime.datetime.strptime(payment['created_at'][:19], "%Y-%m-%dT%H:%M:%S").strftime('%d-%m-%Y %H:%M')
-                    await bot.send_message(user_id, f"Платеж от {date_create_str} отменён, попробуйте оплатить попозже")
+                    await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки")
 
             await asyncio.sleep(7) #5 секунд ожидания каждого запроса, чтобы не заткнуть АПИ
 
