@@ -5,6 +5,7 @@ import config
 import asyncio
 import os
 import you
+import re
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types.message import ContentType
@@ -41,6 +42,7 @@ REFFERAL_PRICE_1 = types.LabeledPrice(label='Подписка на 1 месяц 
 REFFERAL_PRICE_3 = types.LabeledPrice(label='Подписка на 3 месяца (10% скидка)', amount=429)
 user_messages = {}
 messages = {}
+count_errors = {}
 
 async def auto_delete_message(chat_id: int, message_id: int):
     """Функция для удаления сообщения через 3 секунд"""
@@ -148,30 +150,52 @@ async def send(message: types.Message):
                 messages[user_id] = []
                 messages[user_id].append({"question": "изначально ответы на русском языке не более 150 слов", "answer": "конечно"})
 
+            if user_id not in count_errors:
+                count_errors[user_id] = 0 
+
             chatgpt_response = you.Completion.create(prompt=user_message, chat=messages[user_id])
-            chatgpt_response_text = chatgpt_response.text.replace("\\/", "/").encode().decode('unicode_escape')
-            # Add the bot's response to the user's message history
-            messages[user_id].append({"question": user_message, "answer": chatgpt_response_text})
+            if chatgpt_response == None:
+                raise Exception("many_request")
 
-            await message.answer(chatgpt_response_text)
+            if chatgpt_response.text == "Unable to fetch the response, Please try again.":
+                if count_errors[user_id] > 3:
+                    count_errors[user_id] = 0
+                    raise Exception("many_request")
+                await asyncio.sleep(3)
+                count_errors[user_id] += 1 
+                await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
+                await send(message)
+            else:
+                count_errors[user_id] = 0 
+                chatgpt_response_text = chatgpt_response.text.replace("\\/", "/").encode().decode('unicode_escape')
+                chatgpt_response_text = re.sub(r'<.*?>', '', chatgpt_response_text)
 
-            await db.increment_counter_msg(user_id)
-            await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
+                # Add the bot's response to the user's message history
+                messages[user_id].append({"question": user_message, "answer": chatgpt_response_text})
+                await message.answer(chatgpt_response_text)
+
+                await db.increment_counter_msg(user_id)
+            
+            if 'processing_msg' in locals():
+                await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
 
         else:
             await message.answer(f"Закончилось время подписки. Пожалуйста, оформите подписку!", reply_markup=nav.sub_inline_murk)
 
     except Exception as ex:
         # If an error occurs, try starting a new topic
-        if 'processing_msg' in values():
+        if 'processing_msg' in locals():
             await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
         logging.error(f'Error in chat: {ex}')
         if ex == "context_length_exceeded":
             await message.reply('У бота закончилась память, пересоздаю диалог', parse_mode='Markdown')
             await new_topic(message)
             await send(message)
+        elif ex == "many_request":
+            await message.reply('Слишком много запросов, подождите некоторое время и попробуйте снова. Либо установите ограничение текста', parse_mode='Markdown')
         else:
-            await message.reply('У бота возникла ошибка, подождите некоторое время и попробуйте снова. Либо установите ограничение текста', parse_mode='Markdown')
+            await message.reply('Непредвиденная ошибка, подождите некоторое время и попробуйте снова', parse_mode='Markdown')
+
 
 async def set_payment_success(user_id:int, payment, payload:str):
     try:
