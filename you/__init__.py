@@ -111,7 +111,7 @@ class Completion:
 
     @staticmethod
     def __get_failure_response() -> YouResponse:
-        return YouResponse(text='Упс! Ошибка. Просьба начать новую тему')
+        return YouResponse(text='Unable to fetch the response, Please try again.')
 
     @staticmethod
     @retry(
@@ -122,6 +122,5 @@ class Completion:
     def __make_request(client: Session, params: dict) -> Response:
         response = client.get(f'https://you.com/api/streamingSearch', params=params)
         if 'youChatToken' not in response.text:
-            print('retry')
             raise RequestException('Unable to get the response from server')
         return response
