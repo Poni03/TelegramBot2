@@ -8,6 +8,17 @@ class Database:
         self.connection = sqlite3.connect(db_file)
         self.cursor = self.connection.cursor()
 
+    def update_fields(self):
+        ''' check fields '''
+        try:
+            with self.connection:
+                # add last_active_time column
+                self.cursor.execute("ALTER TABLE users ADD COLUMN last_active_time INTEGER DEFAULT 0")
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
     async def user_exists(self, user_id:int) -> bool:
         with self.connection:
             result = self.cursor.execute("SELECT user_id FROM users WHERE user_id=?", (user_id, ))
@@ -33,7 +44,7 @@ class Database:
     def add_user(self, user_id:int, referral_id=None, name_user:str='') -> None:
         reg_date = int(time.time())
         with self.connection:
-            self.cursor.execute("INSERT INTO users (user_id, referral_id, name_user, date_sub, reg_date) VALUES (?, ?, ?, ?, ?)", (user_id, referral_id, name_user, reg_date, reg_date))
+            self.cursor.execute("INSERT INTO users (user_id, referral_id, name_user, date_sub, reg_date, last_active_time) VALUES (?, ?, ?, ?, ?, ?)", (user_id, referral_id, name_user, reg_date, reg_date, reg_date))
 
     def count_referral(self, user_id:int) -> int:
         with self.connection:
@@ -82,21 +93,18 @@ class Database:
         with self.connection:
             self.cursor.execute("UPDATE users SET date_sub=?, status=1 WHERE user_id=?", (date_sub_int, user_id, ))
 
-    def reminder_5days(self, user_id:int) -> None:
-        reminder = int(time.time()) + 10 * 60
+    async def set_last_active_time(self, user_id:int) -> None:
+        last_active = int(time.time())
         with self.connection:
-            self.cursor.execute("UPDATE users SET reminder=? WHERE user_id=?", (reminder, user_id,))
+            self.cursor.execute("UPDATE users SET last_active_time=? WHERE user_id=?", (last_active, user_id,))
 
-    def get_reminder_5days(self, user_id:int) -> int:
+    def get_users_reminder_days(self, days:int):
+        last_active = int(time.time()) - days *24 *60 *60
         with self.connection:
-            result = self.cursor.execute("SELECT reminder FROM users WHERE user_id=?", (user_id, )).fetchone()[0]
-            return result
-
-#    def get_remind(self, user_id:int):
-#        with self.connection:
-#            result = self.cursor.execute("SELECT user_id FROM users WHERE reminder=?", (user_id, )).fetchone()
-#            return result
-            
+            result = self.cursor.execute("SELECT user_id FROM users WHERE last_active_time>0 AND last_active_time<?", (last_active, )).fetchall()
+            if result != None:
+                return result
+            return None;
 
     def get_date_status(self, user_id:int) -> bool:
         with self.connection:

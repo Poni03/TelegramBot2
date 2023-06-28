@@ -2,6 +2,7 @@ import time
 import datetime
 import logging
 import config
+import texts
 import asyncio
 import os
 import you
@@ -33,9 +34,7 @@ yooConfig.secret_key = config.SHOP_API_TOKEN
 bot = Bot(token=config.TOKEN, parse_mode=types.ParseMode.HTML)
 dp = Dispatcher(bot)
 
-#db = Database(config.DB_FILE)
-database for docker container docker-compose up -d
-db = Database('/root/db.db')
+db = Database(config.DB_FILE)
 
 PRICE_1 = types.LabeledPrice(label='Подписка на 1 месяц', amount=199)
 PRICE_3 = types.LabeledPrice(label='Подписка на 3 месяца', amount=477)
@@ -66,11 +65,6 @@ def date_sub_day(get_time):
 async def start_message(message: types.Message) -> None:
     """welcome message."""
     try:
-        #db.reminder_5days(message.from_user.id)
-        #await asyncio.sleep(1)
-        #if db.get_reminder_5days(message.from_user.id) < int(time.time()) + 8 *60:
-            #await bot.send_message(message.from_user.id, config.REMINDER)
-
         exist = await db.user_exists(message.from_user.id)
         if exist:
             await bot.send_message(message.chat.id, "Вы уже зарегистрированы!", reply_markup=nav.mainDMD)
@@ -79,7 +73,7 @@ async def start_message(message: types.Message) -> None:
             decrypted_link = Referr.decrypt_referral_link(message.text)
             referral_id = str(decrypted_link[7:])
 
-            await message.answer(config.TEXT_START)
+            await message.answer(texts.TEXT_START)
 
             if str(referral_id) != '':
                 if int(referral_id) != int(message.from_user.id):
@@ -97,7 +91,7 @@ async def start_message(message: types.Message) -> None:
 @dp.message_handler(commands="help")
 @dp.message_handler(lambda message: message.text and 'помощь' in message.text.lower())
 async def instruction_info(message: types.Message) -> None:
-    await message.answer(f"{config.TEXT_INSTRUCTION}", reply_markup=nav.mainDMD)
+    await message.answer(f"{texts.TEXT_INSTRUCTION}", reply_markup=nav.mainDMD)
 
 @dp.message_handler(commands="newtopic")
 @dp.message_handler(lambda message: message.text and 'новая тема' in message.text.lower())
@@ -113,7 +107,6 @@ async def new_topic(message: types.Message) -> None:
 
 @dp.message_handler(commands=("share"))
 async def give_info(message: types.Message) -> None:
-    #db.reminder_5days(message.from_user.id)
     encrypted_link = Referr.encrypt_referral_link(message.from_user.id)
     info = await bot.get_me()
     name = info.username
@@ -124,7 +117,7 @@ async def give_info(message: types.Message) -> None:
     inline_back = InlineKeyboardButton(text="Назад в меню", callback_data="backs")
     share_inline.add(inline_share)
     share_inline.add(inline_back)
-    await message.answer(config.TEXT_REFERRAL, reply_markup=share_inline)
+    await message.answer(texts.TEXT_REFERRAL, reply_markup=share_inline)
 
 @dp.message_handler(commands="myprofile")
 @dp.message_handler(lambda message: message.text and 'профиль' in message.text.lower())
@@ -159,12 +152,6 @@ async def profile_handler(message: types.Message):
 async def subscribe_handler(message: types.Message):
     await message.answer(f"Выберите и оформите подписку!", reply_markup=nav.sub_inline_murk)
 
-#async def reminder_send(message: types.Message):
-#    await bot.send_message(, int(time.time()))
-#    if db.get_reminder_5days(db.get_all_user()) < int(time.time()) + 8 *60:
-#        await bot.send_message(db.get_all_user(), config.REMINDER)
-
-
 @dp.message_handler(content_types="text")
 async def send(message: types.Message):
     try:
@@ -175,7 +162,6 @@ async def send(message: types.Message):
         if(db.get_date_status(user_id)):
             processing_msg = await message.answer('⏳ Идет обработка данных...')
             await bot.send_chat_action(message.chat.id, action="typing")
-            asyncio.ensure_future(auto_delete_message(message.chat.id, processing_msg.message_id))
             if user_id not in messages:
                 messages[user_id] = []
                 messages[user_id].append({"question": "изначально ответы на русском языке не более 150 слов", "answer": "конечно"})
@@ -193,7 +179,6 @@ async def send(message: types.Message):
                     raise Exception("many_request")
                 await asyncio.sleep(3)
                 count_errors[user_id] += 1 
-                await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
                 await send(message)
             else:
                 count_errors[user_id] = 0 
@@ -208,6 +193,8 @@ async def send(message: types.Message):
             
             if 'processing_msg' in locals():
                 await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
+
+            await db.set_last_active_time(user_id)
 
         else:
             await message.answer(f"Закончилось время подписки. Пожалуйста, оформите подписку!", reply_markup=nav.sub_inline_murk)
@@ -224,7 +211,7 @@ async def send(message: types.Message):
         elif ex == "many_request":
             await message.reply('Слишком много запросов, подождите некоторое время и попробуйте снова. Либо установите ограничение текста', parse_mode='Markdown')
         else:
-            await message.reply('Непредвиденная ошибка, подождите некоторое время и попробуйте снова', parse_mode='Markdown', , reply_markup=nav.mainDMD)
+            await message.reply('Непредвиденная ошибка, подождите некоторое время и попробуйте снова', parse_mode='Markdown', reply_markup=nav.mainDMD)
 
 
 async def set_payment_success(user_id:int, payment, payload:str):
@@ -323,9 +310,9 @@ async def handle_callback_query(callback: types.CallbackQuery):
         await bot.send_message(user_id, "Не сформировался чек. попробуйте позже.")
         logging.error(f'Error in subscribe: {e}')
 
-async def check_payment(self):
-    while True:
-        list_payments = db.get_payments_for_status("pending")
+async def check_payment(timedata):
+    list_payments = db.get_payments_for_status("pending")
+    if list_payments is not None:
         for payment_row in list_payments:
             payment_id = payment_row[0]
             user_id = payment_row[1]
@@ -358,7 +345,17 @@ async def check_payment(self):
 
             await asyncio.sleep(7) #5 секунд ожидания каждого запроса, чтобы не заткнуть АПИ
 
-        await asyncio.sleep(10) #ждем10 бесконечный цикл
+    await asyncio.sleep(timedata) #ждем
+
+async def reminder_send(timedata):
+    list_reminders = db.get_users_reminder_days(config.DAYS_REMINDER)
+    if list_reminders is not None:
+        for reminder_row in list_reminders:
+            user_id = reminder_row[0]
+            await bot.send_message(user_id, texts.REMINDER)
+            await db.set_last_active_time(user_id)
+
+    await asyncio.sleep(timedata) #ждем
 
 async def setup_bot_commands(dp):
     bot_commands = [
@@ -367,10 +364,16 @@ async def setup_bot_commands(dp):
     ]
     await dp.bot.set_my_commands(bot_commands)
 
-if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-#    loop.run_until_complete(reminder_send(config.REMINDER))
+def init():
+    db.update_fields()
 
-    # поставим 10 секунд, в качестве теста
-    loop.create_task(check_payment(10))
+async def main():
+    while True:
+        await check_payment(10)
+        await reminder_send(10)
+
+if __name__ == '__main__':
+    init()
+    loop=asyncio.get_event_loop()
+    loop.create_task(main())
     executor.start_polling(dp, skip_updates = True, on_startup=setup_bot_commands)
