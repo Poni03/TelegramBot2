@@ -81,7 +81,23 @@ class Database:
         date_sub_int = int(old_date) + date_sub *24 *60 *60
         with self.connection:
             self.cursor.execute("UPDATE users SET date_sub=?, status=1 WHERE user_id=?", (date_sub_int, user_id, ))
-	
+
+    def reminder_5days(self, user_id:int) -> None:
+        reminder = int(time.time()) + 10 * 60
+        with self.connection:
+            self.cursor.execute("UPDATE users SET reminder=? WHERE user_id=?", (reminder, user_id,))
+
+    def get_reminder_5days(self, user_id:int) -> int:
+        with self.connection:
+            result = self.cursor.execute("SELECT reminder FROM users WHERE user_id=?", (user_id, )).fetchone()[0]
+            return result
+
+#    def get_remind(self, user_id:int):
+#        with self.connection:
+#            result = self.cursor.execute("SELECT user_id FROM users WHERE reminder=?", (user_id, )).fetchone()
+#            return result
+            
+
     def get_date_status(self, user_id:int) -> bool:
         with self.connection:
             result = self.cursor.execute("SELECT date_sub FROM users WHERE user_id=?", (user_id, )).fetchone()
@@ -119,3 +135,4 @@ class Database:
         reg_date = int(time.time())
         with self.connection:
             self.cursor.execute("UPDATE payments SET status=?, date_oper=? WHERE payment_id=?", (status, reg_date, payment_id, ))
+ 

@@ -1,15 +1,14 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 
-'''
-MAin menu
+#MAin menu
 btDMD = KeyboardButton('Новая тема')
 btProfile = KeyboardButton('👤 Профиль')
-btBuy = KeyboardButton('💎Оформить подписку')
+btBuy = KeyboardButton('Помощь')
 mainMenu = ReplyKeyboardMarkup(resize_keyboard = True)
 mainMenu.add(btProfile, btBuy)
 mainDMD = ReplyKeyboardMarkup(resize_keyboard = True)
 mainDMD.add(btDMD, btProfile, btBuy)
-'''
+
 #share_markup = telegram.ReplyKeyboardMarkup([[telegram.KeyboardButton("Поделиться", request_contact=True)]], resize_keyboard=True)
 
 #InlineMenu
