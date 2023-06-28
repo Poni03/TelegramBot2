@@ -114,9 +114,7 @@ async def give_info(message: types.Message) -> None:
     share_inline = InlineKeyboardMarkup(row_width=2)
 
     inline_share = InlineKeyboardButton(text="Поделиться реферальной ссылкой", url=f'https://t.me/share/url?url={share_text}')
-    inline_back = InlineKeyboardButton(text="Назад в меню", callback_data="backs")
     share_inline.add(inline_share)
-    share_inline.add(inline_back)
     await message.answer(texts.TEXT_REFERRAL, reply_markup=share_inline)
 
 @dp.message_handler(commands="myprofile")
@@ -142,9 +140,7 @@ async def profile_handler(message: types.Message):
     share_inline = InlineKeyboardMarkup(row_width=2)
 
     inline_share = InlineKeyboardButton(text="Поделиться реферальной ссылкой", url=f'https://t.me/share/url?url={share_text}')
-    inline_back = InlineKeyboardButton(text="Назад в меню", callback_data="backs")
     share_inline.add(inline_share)
-    share_inline.add(inline_back)
     await message.answer(f"{line1}\n{line2}\n{hcode(share_text)}\n{line3}\n{line4}", reply_markup=share_inline)
 
 @dp.message_handler(commands="subscribe")
@@ -209,7 +205,7 @@ async def send(message: types.Message):
             await new_topic(message)
             await send(message)
         elif ex == "many_request":
-            await message.reply('Слишком много запросов, подождите некоторое время и попробуйте снова. Либо установите ограничение текста', parse_mode='Markdown')
+            await message.reply('Слишком много запросов, подождите некоторое время и попробуйте снова. Либо установите ограничение текста', parse_mode='Markdown', reply_markup=nav.mainDMD)
         else:
             await message.reply('Непредвиденная ошибка, подождите некоторое время и попробуйте снова', parse_mode='Markdown', reply_markup=nav.mainDMD)
 
@@ -361,6 +357,7 @@ async def setup_bot_commands(dp):
     bot_commands = [
         types.BotCommand("/share", "Реферальная программа"),
         types.BotCommand("/subscribe", "Оплата подписки"),
+        types.BotCommand("/help", "Помощь"),
     ]
     await dp.bot.set_my_commands(bot_commands)
 
