@@ -101,7 +101,7 @@ async def new_topic(message: types.Message) -> None:
         messages[user_id] = []
         messages[user_id].append({"question": "изначально ответы на русском языке не более 150 слов", "answer": "конечно"})
 
-        await message.answer('Начинаем новую тему!', parse_mode='Markdown', reply_markup=nav.mainDMD)
+        await message.answer('Начинаем новую тему!', parse_mode='Markdown')
     except Exception as e:
         logging.error(f'Error in new_topic_cmd: {e}')
 
