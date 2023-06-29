@@ -67,7 +67,7 @@ async def start_message(message: types.Message) -> None:
     try:
         exist = await db.user_exists(message.from_user.id)
         if exist:
-            await bot.send_message(message.chat.id, "Вы уже зарегистрированы!", reply_markup=nav.mainDMD)
+            await bot.send_message(message.chat.id, "Вы уже зарегистрированы!", parse_mode='Markdown')
 
         else:
             decrypted_link = Referr.decrypt_referral_link(message.text)
@@ -77,10 +77,10 @@ async def start_message(message: types.Message) -> None:
 
             if str(referral_id) != '':
                 if int(referral_id) != int(message.from_user.id):
-                    await bot.send_message(referral_id, "По вашей ссылке зарегистрировался новый пользователь", reply_markup=nav.mainDMD)
+                    await bot.send_message(referral_id, "По вашей ссылке зарегистрировался новый пользователь", parse_mode='Markdown')
                 else:
                     referral_id = None
-                    await message.answer(',Нельзя регистрироваться по собственной реферальной ссылке!', reply_markup=nav.mainDMD)
+                    await message.answer(',Нельзя регистрироваться по собственной реферальной ссылке!', parse_mode='Markdown')
 
             db.add_user(message.from_user.id, referral_id, message.from_user.username)
             db.add_date_sub(message.from_user.id, config.DAYS_FREE_USE)
@@ -101,7 +101,7 @@ async def new_topic(message: types.Message) -> None:
         messages[user_id] = []
         messages[user_id].append({"question": "изначально ответы на русском языке не более 150 слов", "answer": "конечно"})
 
-        await message.answer('Начинаем новую тему!', parse_mode='Markdown', reply_markup=nav.mainDMD)
+        await message.answer('Начинаем новую тему!', parse_mode='Markdown')
     except Exception as e:
         logging.error(f'Error in new_topic_cmd: {e}')
 
@@ -321,7 +321,7 @@ async def check_payment(timedata):
                     await set_payment_success(user_id, payment, payload)
                 elif payment['status'] == 'canceled':
                     date_create_str = datetime.datetime.strptime(payment['created_at'][:19], "%Y-%m-%dT%H:%M:%S").strftime('%d-%m-%Y %H:%M')
-                    await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки", reply_markup=nav.mainDMD)
+                    await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки", parse_mode='Markdown')
 
             await asyncio.sleep(7) #5 секунд ожидания каждого запроса, чтобы не заткнуть АПИ
 
@@ -337,7 +337,7 @@ async def check_payment(timedata):
                     await set_payment_success(user_id, payment, payload)
                 elif payment['status'] == 'canceled':
                     date_create_str = datetime.datetime.strptime(payment['created_at'][:19], "%Y-%m-%dT%H:%M:%S").strftime('%d-%m-%Y %H:%M')
-                    await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки")
+                    await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки", parse_mode='Markdown')
 
             await asyncio.sleep(7) #5 секунд ожидания каждого запроса, чтобы не заткнуть АПИ
 
