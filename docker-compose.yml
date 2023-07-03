@@ -6,6 +6,6 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-    command: /bin/sh -c 'python bot.py'
+    command: /bin/sh -c 'python -u bot.py'
     volumes:
       - ./db/db.db:/root/db.db
