@@ -5,8 +5,9 @@ import config
 import texts
 import asyncio
 import os
-import you
 import re
+import g4f
+import nest_asyncio
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types.message import ContentType
@@ -40,9 +41,8 @@ PRICE_1 = types.LabeledPrice(label='Подписка на 1 месяц', amount=
 PRICE_3 = types.LabeledPrice(label='Подписка на 3 месяца', amount=477)
 REFFERAL_PRICE_1 = types.LabeledPrice(label='Подписка на 1 месяц (10% скидка)', amount=179)
 REFFERAL_PRICE_3 = types.LabeledPrice(label='Подписка на 3 месяца (10% скидка)', amount=429)
-user_messages = {}
 messages = {}
-count_errors = {}
+processing_msg = None;
 
 async def auto_delete_message(chat_id: int, message_id: int):
     """Функция для удаления сообщения через 3 секунд"""
@@ -67,7 +67,7 @@ async def start_message(message: types.Message) -> None:
     try:
         exist = await db.user_exists(message.from_user.id)
         if exist:
-            await bot.send_message(message.chat.id, "Вы уже зарегистрированы!", parse_mode='Markdown')
+            await bot.send_message(message.chat.id, "Вы уже зарегистрированы!", reply_markup=nav.mainDMD)
 
         else:
             decrypted_link = Referr.decrypt_referral_link(message.text)
@@ -77,10 +77,10 @@ async def start_message(message: types.Message) -> None:
 
             if str(referral_id) != '':
                 if int(referral_id) != int(message.from_user.id):
-                    await bot.send_message(referral_id, "По вашей ссылке зарегистрировался новый пользователь", parse_mode='Markdown')
+                    await bot.send_message(referral_id, "По вашей ссылке зарегистрировался новый пользователь", reply_markup=nav.mainDMD)
                 else:
                     referral_id = None
-                    await message.answer(',Нельзя регистрироваться по собственной реферальной ссылке!', parse_mode='Markdown')
+                    await message.answer(',Нельзя регистрироваться по собственной реферальной ссылке!', reply_markup=nav.mainDMD)
 
             db.add_user(message.from_user.id, referral_id, message.from_user.username)
             db.add_date_sub(message.from_user.id, config.DAYS_FREE_USE)
@@ -99,7 +99,7 @@ async def new_topic(message: types.Message) -> None:
     try:
         user_id = message.from_user.id
         messages[user_id] = []
-        messages[user_id].append({"question": "изначально ответы на русском языке не более 150 слов", "answer": "конечно"})
+        messages[user_id].append({"role": "user", "content": "твоя роль писателя ответы на русском языке не более 150 слов"})
 
         await message.answer('Начинаем новую тему!', parse_mode='Markdown')
     except Exception as e:
@@ -155,60 +155,49 @@ async def send(message: types.Message):
         user_id = message.from_user.id
         user_name = message.from_user.username
 
-        if(db.get_date_status(user_id)):
-            processing_msg = await message.answer('⏳ Идет обработка данных...')
-            await bot.send_chat_action(message.chat.id, action="typing")
-            if user_id not in messages:
-                messages[user_id] = []
-                messages[user_id].append({"question": "изначально ответы на русском языке не более 150 слов", "answer": "конечно"})
+        if not db.get_date_status(user_id):
+            raise Exception("time oveflow")
 
-            if user_id not in count_errors:
-                count_errors[user_id] = 0 
+        processing_msg = await message.answer('⏳ Идет обработка данных...')
+        await bot.send_chat_action(message.chat.id, action="typing")
+        if user_id not in messages:
+            messages[user_id] = []
+            messages[user_id].append({"role":"user", "content":"твоя роль писателя ответы на русском языке не более 150 слов"})
 
-            chatgpt_response = you.Completion.create(prompt=user_message, chat=messages[user_id])
-            if chatgpt_response == None:
-                raise Exception("many_request")
+        messages[user_id].append({"role":"user", "content": user_message})
+        chatgpt_response = g4f.ChatCompletion.create(model="gpt-3.5-turbo", provider=g4f.Provider.You, messages=messages[user_id])
+        if not chatgpt_response:
+            raise Exception("many_request")
+        if chatgpt_response == "Unable to fetch the response, Please try again.":
+            raise Exception("many_request")
+        # Add the bot's response to the user's message history
+        messages[user_id].append({"role":"assistant", "content": chatgpt_response})
+        await message.answer(chatgpt_response)
 
-            if chatgpt_response.text == "Unable to fetch the response, Please try again.":
-                if count_errors[user_id] > 3:
-                    count_errors[user_id] = 0
-                    raise Exception("many_request")
-                await asyncio.sleep(3)
-                count_errors[user_id] += 1 
-                await send(message)
-            else:
-                count_errors[user_id] = 0 
-                chatgpt_response_text = chatgpt_response.text.replace("\\/", "/").encode().decode('unicode_escape')
-                chatgpt_response_text = re.sub(r'<.*?>', '', chatgpt_response_text)
+        await db.increment_counter_msg(user_id)
+        
+        if processing_msg != None:
+            await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
+            processing_msg = None
 
-                # Add the bot's response to the user's message history
-                messages[user_id].append({"question": user_message, "answer": chatgpt_response_text})
-                await message.answer(chatgpt_response_text)
-
-                await db.increment_counter_msg(user_id)
-            
-            if 'processing_msg' in locals():
-                await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
-
-            await db.set_last_active_time(user_id)
-
-        else:
-            await message.answer(f"Закончилось время подписки. Пожалуйста, оформите подписку!", reply_markup=nav.sub_inline_murk)
-
+        await db.set_last_active_time(user_id)        
     except Exception as ex:
         # If an error occurs, try starting a new topic
-        if 'processing_msg' in locals():
+        if processing_msg != None:
             await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
+            processing_msg = None
+
         logging.error(f'Error in chat: {ex}')
-        if ex == "context_length_exceeded":
+        if ex == "time oveflow":
+            await message.reply(f"Закончилось время подписки. Пожалуйста, оформите подписку!", reply_markup=nav.sub_inline_murk)
+        elif ex == "context_length_exceeded":
             await message.reply('У бота закончилась память, пересоздаю диалог', parse_mode='Markdown')
             await new_topic(message)
             await send(message)
         elif ex == "many_request":
-            await message.reply('Слишком много запросов, подождите некоторое время и попробуйте снова. Либо установите ограничение текста', parse_mode='Markdown', reply_markup=nav.mainDMD)
+            await message.reply('Слишком много запросов, подождите некоторое время и попробуйте снова. Либо установите ограничение текста', parse_mode='Markdown')
         else:
-            await message.reply('Непредвиденная ошибка, подождите некоторое время и попробуйте снова', parse_mode='Markdown', reply_markup=nav.mainDMD)
-
+            await message.reply(f'Непредвиденная ошибка, подождите некоторое время и попробуйте снова {ex}', parse_mode='Markdown')
 
 async def set_payment_success(user_id:int, payment, payload:str):
     try:
@@ -300,7 +289,7 @@ async def handle_callback_query(callback: types.CallbackQuery):
             await set_payment_success(user_id, payment_data, payload)
         elif payment_data['status'] == 'canceled':
             date_create_str = datetime.datetime.strptime(payment_data['created_at'][:19], "%Y-%m-%dT%H:%M:%S").strftime('%d-%m-%Y %H:%M')
-            await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки")
+            await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки", reply_markup=nav.sub_inline_murk)
 
     except Exception as e:
         await bot.send_message(user_id, "Не сформировался чек. попробуйте позже.")
@@ -321,7 +310,7 @@ async def check_payment(timedata):
                     await set_payment_success(user_id, payment, payload)
                 elif payment['status'] == 'canceled':
                     date_create_str = datetime.datetime.strptime(payment['created_at'][:19], "%Y-%m-%dT%H:%M:%S").strftime('%d-%m-%Y %H:%M')
-                    await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки", parse_mode='Markdown')
+                    await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки", reply_markup=nav.sub_inline_murk)
 
             await asyncio.sleep(7) #5 секунд ожидания каждого запроса, чтобы не заткнуть АПИ
 
@@ -337,7 +326,7 @@ async def check_payment(timedata):
                     await set_payment_success(user_id, payment, payload)
                 elif payment['status'] == 'canceled':
                     date_create_str = datetime.datetime.strptime(payment['created_at'][:19], "%Y-%m-%dT%H:%M:%S").strftime('%d-%m-%Y %H:%M')
-                    await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки", parse_mode='Markdown')
+                    await bot.send_message(user_id, f"Ваш платеж от {date_create_str} отменён, либо прошло время действия ссылки", reply_markup=nav.sub_inline_murk)
 
             await asyncio.sleep(7) #5 секунд ожидания каждого запроса, чтобы не заткнуть АПИ
 
@@ -355,6 +344,7 @@ async def reminder_send(timedata):
 
 async def setup_bot_commands(dp):
     bot_commands = [
+        types.BotCommand("/newtopic", "Новая тема"),
         types.BotCommand("/share", "Реферальная программа"),
         types.BotCommand("/subscribe", "Оплата подписки"),
         types.BotCommand("/help", "Помощь"),
@@ -371,6 +361,7 @@ async def main():
 
 if __name__ == '__main__':
     init()
-    loop=asyncio.get_event_loop()
-    loop.create_task(main())
+    nest_asyncio.apply()
+    loopbot=asyncio.get_event_loop()
+    loopbot.create_task(main())
     executor.start_polling(dp, skip_updates = True, on_startup=setup_bot_commands)
