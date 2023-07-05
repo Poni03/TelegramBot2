@@ -42,7 +42,6 @@ PRICE_3 = types.LabeledPrice(label='Подписка на 3 месяца', amoun
 REFFERAL_PRICE_1 = types.LabeledPrice(label='Подписка на 1 месяц (10% скидка)', amount=179)
 REFFERAL_PRICE_3 = types.LabeledPrice(label='Подписка на 3 месяца (10% скидка)', amount=429)
 messages = {}
-processing_msg = None;
 
 async def auto_delete_message(chat_id: int, message_id: int):
     """Функция для удаления сообщения через 3 секунд"""
@@ -91,7 +90,7 @@ async def start_message(message: types.Message) -> None:
 @dp.message_handler(commands="help")
 @dp.message_handler(lambda message: message.text and 'помощь' in message.text.lower())
 async def instruction_info(message: types.Message) -> None:
-    await message.answer(f"{texts.TEXT_INSTRUCTION}", reply_markup=nav.mainDMD)
+    await message.answer(f"{texts.TEXT_INSTRUCTION}")
 
 @dp.message_handler(commands="newtopic")
 @dp.message_handler(lambda message: message.text and 'новая тема' in message.text.lower())
@@ -150,13 +149,13 @@ async def subscribe_handler(message: types.Message):
 
 @dp.message_handler(content_types="text")
 async def send(message: types.Message):
-    try:
         user_message = message.text
         user_id = message.from_user.id
         user_name = message.from_user.username
 
         if not db.get_date_status(user_id):
-            raise Exception("time oveflow")
+            await message.reply(f"Закончилось время подписки. Пожалуйста, оформите подписку!", reply_markup=nav.sub_inline_murk)
+            return
 
         processing_msg = await message.answer('⏳ Идет обработка данных...')
         await bot.send_chat_action(message.chat.id, action="typing")
@@ -165,39 +164,26 @@ async def send(message: types.Message):
             messages[user_id].append({"role":"user", "content":"твоя роль писателя ответы на русском языке не более 150 слов"})
 
         messages[user_id].append({"role":"user", "content": user_message})
-        chatgpt_response = g4f.ChatCompletion.create(model="gpt-3.5-turbo", provider=g4f.Provider.You, messages=messages[user_id])
-        if not chatgpt_response:
-            raise Exception("many_request")
-        if chatgpt_response == "Unable to fetch the response, Please try again.":
-            raise Exception("many_request")
-        # Add the bot's response to the user's message history
-        messages[user_id].append({"role":"assistant", "content": chatgpt_response})
-        await message.answer(chatgpt_response)
+        try:
+            chatgpt_response = g4f.ChatCompletion.create(model="gpt-3.5-turbo", provider=g4f.Provider.DeepAi, messages=messages[user_id])
+            #print(chatgpt_response)
+            if not chatgpt_response:
+                raise Exception("manyrequestempty")
+            if chatgpt_response == "Unable to fetch the response, Please try again.":
+                raise Exception("manyrequest")
+            # Add the bot's response to the user's message history
+            messages[user_id].append({"role":"assistant", "content": chatgpt_response})
+            await message.answer(chatgpt_response)
+            await db.increment_counter_msg(user_id)
+        except Exception as ex:
+            logging.error(f'Error in chat: {ex}')
+            if ex == "manyrequest":
+                await message.answer('Слишком много запросов, подождите некоторое время и попробуйте снова. Либо установите ограничение текста', parse_mode='Markdown')
+            else:
+                await message.answer(f'Непредвиденная ошибка, подождите некоторое время и попробуйте снова {ex}', parse_mode='Markdown')
 
-        await db.increment_counter_msg(user_id)
-        
-        if processing_msg != None:
-            await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
-            processing_msg = None
-
+        await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
         await db.set_last_active_time(user_id)        
-    except Exception as ex:
-        # If an error occurs, try starting a new topic
-        if processing_msg != None:
-            await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
-            processing_msg = None
-
-        logging.error(f'Error in chat: {ex}')
-        if ex == "time oveflow":
-            await message.reply(f"Закончилось время подписки. Пожалуйста, оформите подписку!", reply_markup=nav.sub_inline_murk)
-        elif ex == "context_length_exceeded":
-            await message.reply('У бота закончилась память, пересоздаю диалог', parse_mode='Markdown')
-            await new_topic(message)
-            await send(message)
-        elif ex == "many_request":
-            await message.reply('Слишком много запросов, подождите некоторое время и попробуйте снова. Либо установите ограничение текста', parse_mode='Markdown')
-        else:
-            await message.reply(f'Непредвиденная ошибка, подождите некоторое время и попробуйте снова {ex}', parse_mode='Markdown')
 
 async def set_payment_success(user_id:int, payment, payload:str):
     try:
