@@ -331,6 +331,7 @@ async def reminder_send(timedata):
 async def setup_bot_commands(dp):
     bot_commands = [
         types.BotCommand("/newtopic", "Новая тема"),
+        types.BotCommand("/myprofile", "Мой профиль"),
         types.BotCommand("/share", "Реферальная программа"),
         types.BotCommand("/subscribe", "Оплата подписки"),
         types.BotCommand("/help", "Помощь"),
