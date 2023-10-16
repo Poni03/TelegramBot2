@@ -17,6 +17,10 @@ from aiogram.utils.deep_linking import get_start_link, decode_payload
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils.markdown import hbold, hunderline, hcode, hlink
 
+from telegram import ForceReply, Update
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+
+
 import markup as nav
 from bot_db import Database
 from bot_referral import Referr
@@ -31,8 +35,8 @@ logging.basicConfig(level=logging.INFO)
 yooConfig.account_id = config.SHOP_ID
 yooConfig.secret_key = config.SHOP_API_TOKEN
 
-
-bot = Bot(token=config.TOKEN, parse_mode=types.ParseMode.HTML)
+#parse_mode=types.ParseMode.HTML
+app = ApplicationBuilder().token(config.TOKEN).build()
 dp = Dispatcher(bot)
 
 db = Database(config.DB_FILE)
@@ -183,7 +187,7 @@ async def send(message: types.Message):
                 await message.answer(f'Непредвиденная ошибка, подождите некоторое время и попробуйте снова {ex}', parse_mode='Markdown')
 
         await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
-        await db.set_last_active_time(user_id)        
+        await db.set_last_active_time(user_id)
 
 async def set_payment_success(user_id:int, payment, payload:str):
     try:
@@ -283,7 +287,7 @@ async def handle_callback_query(callback: types.CallbackQuery):
 
 async def check_payment(timedata):
     list_payments = db.get_payments_for_status("pending")
-    if list_payments is not None:
+    if list_payments is not Nonцe:
         for payment_row in list_payments:
             payment_id = payment_row[0]
             user_id = payment_row[1]
