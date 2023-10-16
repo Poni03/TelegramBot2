@@ -1,4 +1,4 @@
-TOKEN = '6487693126:AAGw_Fh5_UOfvuopiNUB4NWmo5wZ5h8rbkM'
+TOKEN = ''
 PAYMENTS_TOKEN = ''
 PONI_BOT = 'GPT-Dialog' 
 SHOP_ID = ''
