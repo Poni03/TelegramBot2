@@ -4,7 +4,7 @@ TEXT_START = '''Привет! Я – GPT-Dialog, языковая модель �
 
 TEXT_LINK = 'http://a0835272.xsph.ru'
 
-TEXT_LINK2 = "https://poni03.github.io"
+TEXT_LINK2 = ""
 
 TEXT_LINK3 = "https://t.me/Help_GPT_Dialog"
 
